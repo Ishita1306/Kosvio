@@ -1,3 +1,51 @@
+
+# InsightFlow AI
+
+An AI-Powered Business Intelligence Platform that transforms raw business datasets into interactive dashboards, predictive forecasts, AI-generated insights, and executive reports.
+
+## Features
+
+- Upload CSV and Excel datasets
+- Automatic data profiling
+- Data cleaning
+- Interactive dashboards
+- Business KPI analytics
+- Sales forecasting
+- AI-generated insights
+- Executive PDF reports
+- Dashboard export (PDF & PNG)
+- Clean dataset export
+
+## Tech Stack
+
+### Frontend
+- Streamlit
+
+### Backend
+- Python
+
+### Data Processing
+- Pandas
+- NumPy
+
+### Visualization
+- Plotly
+
+### Machine Learning
+- Scikit-learn
+- Statsmodels
+
+### Database
+- SQLite
+
+### Deployment
+- Streamlit Community Cloud
+
+## Project Status
+
+🚧 Currently Under Development
+
+
 # InsightFlow
 
 Production-quality SaaS foundation for a business intelligence platform.
