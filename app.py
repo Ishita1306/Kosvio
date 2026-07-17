@@ -13,7 +13,7 @@ from utils.theme_manager import inject_theme_css
 
 @st.cache_data
 def _read_stylesheet() -> str:
-    # Read custom stylesheet (updated v12)
+    # Read custom stylesheet (updated v13)
     with open("styles/theme.css", "r", encoding="utf-8") as f:
         return f.read()
 

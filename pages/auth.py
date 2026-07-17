@@ -1,6 +1,6 @@
 import streamlit as st
 from components.glass_card import glass_card_panel
-from database.auth_db import verify_user, create_user
+from database.auth_db import verify_user, create_user, validate_email, validate_password_strength
 
 
 def render() -> None:
@@ -12,13 +12,19 @@ def render() -> None:
         st.session_state["show_terms"] = False
     if "terms_accepted" not in st.session_state:
         st.session_state["terms_accepted"] = False
+    
+    # Initialize failed login attempts state
+    if "login_attempts" not in st.session_state:
+        st.session_state["login_attempts"] = 0
+    if "login_locked" not in st.session_state:
+        st.session_state["login_locked"] = False
 
     if st.session_state["show_terms"]:
         from pages import terms_privacy
         terms_privacy.render()
         return
 
-    # Inject CSS to hide the sidebar completely, use full screen, and center the card
+    # Inject CSS to hide sidebar, collapse header, and center the container
     st.markdown(
         """
         <style>
@@ -51,26 +57,25 @@ def render() -> None:
 
     # Wrap in premium glass card
     with glass_card_panel():
-        # Brand Header
+        # Brand Header (using styles/theme.css classes instead of inline style rules)
         st.markdown(
-            '<h2 style="margin: 0 0 0.25rem; font-size: 2.25rem; font-weight: 800; color: var(--text); text-align: center;">'
-            'CLARIO <span style="color: var(--primary);">AI</span></h2>',
+            '<h2 class="auth-title">CLARIO <span>AI</span></h2>',
             unsafe_allow_html=True
         )
         
         if st.session_state["auth_mode"] == "signin":
             st.markdown(
-                '<p style="font-size: 0.95rem; color: var(--subtext); margin-bottom: 2rem; text-align: center;">'
-                'Sign in to access your analytics workspace.</p>',
+                '<p class="auth-subtitle">Sign in to access your analytics workspace.</p>',
                 unsafe_allow_html=True
             )
             
+            # Show lock warning if attempts are exceeded
+            if st.session_state["login_locked"]:
+                st.error("Too many failed login attempts. Access is temporarily locked. Please try again later or restart your session.")
+            
             # Sign In Form
             email = st.text_input("Email Address", placeholder="name@company.com", key="auth_email")
-            password = st.text_input("Password", type="password", placeholder="••••••••", key="auth_password")
-            
-            # Remember Me Checkbox
-            remember_me = st.checkbox("Remember Me", value=True, key="auth_remember")
+            password = st.text_input("Password", type="password", placeholder="********", key="auth_password")
             
             # Terms Agreement Checkbox & Read Link
             terms_accepted = st.checkbox(
@@ -86,41 +91,50 @@ def render() -> None:
 
             st.markdown('<div style="margin-top: 1rem;"></div>', unsafe_allow_html=True)
             
-            if st.button("Sign In", use_container_width=True, type="primary", disabled=not st.session_state.get("terms_accepted", False)):
+            # Enable button only if terms are accepted and login is not locked
+            is_locked = st.session_state["login_locked"]
+            submit_disabled = is_locked or not st.session_state.get("terms_accepted", False)
+            
+            if st.button("Sign In", use_container_width=True, type="primary", disabled=submit_disabled):
                 if not email or not password:
                     st.error("Please fill in all credentials.")
                 else:
                     user = verify_user(email, password)
                     if user:
+                        # Reset attempts upon success
+                        st.session_state["login_attempts"] = 0
+                        st.session_state["login_locked"] = False
+                        
                         st.session_state["authenticated"] = True
                         st.session_state["user"] = user
-                        st.session_state["remember_me"] = remember_me
                         st.success("Successfully authenticated!")
                         st.rerun()
                     else:
-                        st.error("Invalid email or password. Please verify your credentials.")
-            
-            # Forgot Password placeholder
-            if st.button("Forgot Password?", use_container_width=True, type="secondary"):
-                st.info("Password recovery instructions have been sent to your email (placeholder).")
-                    
-            st.markdown('<div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; text-align: center;"></div>', unsafe_allow_html=True)
+                        st.session_state["login_attempts"] += 1
+                        attempts_left = 5 - st.session_state["login_attempts"]
+                        if st.session_state["login_attempts"] >= 5:
+                            st.session_state["login_locked"] = True
+                            st.error("Too many failed login attempts. Access is temporarily locked.")
+                            st.rerun()
+                        else:
+                            st.error(f"Invalid email or password. Please verify your credentials. ({attempts_left} attempts remaining)")
+            st.markdown('<div class="auth-divider"></div>', unsafe_allow_html=True)
             if st.button("Don't have an account? Sign Up", use_container_width=True):
                 st.session_state["auth_mode"] = "signup"
                 st.rerun()
                 
         else:
             st.markdown(
-                '<p style="font-size: 0.95rem; color: var(--subtext); margin-bottom: 2rem; text-align: center;">'
-                'Create an account to get started with CLARIO.</p>',
+                '<p class="auth-subtitle">Create an account to get started with CLARIO.</p>',
                 unsafe_allow_html=True
             )
             
             # Sign Up Form
             name = st.text_input("Full Name", placeholder="John Doe", key="auth_name")
             email = st.text_input("Email Address", placeholder="name@company.com", key="auth_email")
-            password = st.text_input("Password", type="password", placeholder="••••••••", key="auth_password")
-            confirm_password = st.text_input("Confirm Password", type="password", placeholder="••••••••", key="auth_confirm")
+            password = st.text_input("Password", type="password", placeholder="********", key="auth_password")
+            confirm_password = st.text_input("Confirm Password", type="password", placeholder="********", key="auth_confirm")
+            
             # Terms Agreement Checkbox & Read Link
             terms_accepted = st.checkbox(
                 "I have read and agree to the Terms of Service and Privacy Policy.", 
@@ -138,23 +152,29 @@ def render() -> None:
             if st.button("Sign Up", use_container_width=True, type="primary", disabled=not st.session_state.get("terms_accepted", False)):
                 if not name or not email or not password or not confirm_password:
                     st.error("Please fill in all fields.")
+                elif not validate_email(email):
+                    st.error("Invalid email address format. Please enter a valid email (e.g., name@company.com).")
                 elif password != confirm_password:
                     st.error("Passwords do not match.")
                 else:
-                    success, msg = create_user(email, password, name)
-                    if success:
-                        st.success("Account successfully created!")
-                        # Auto sign in
-                        st.session_state["authenticated"] = True
-                        st.session_state["user"] = {
-                            "email": email,
-                            "name": name
-                        }
-                        st.rerun()
+                    is_strong, strength_msg = validate_password_strength(password)
+                    if not is_strong:
+                        st.error(strength_msg)
                     else:
-                        st.error(msg)
+                        success, msg = create_user(email, password, name)
+                        if success:
+                            st.success("Account successfully created!")
+                            # Auto sign in
+                            st.session_state["authenticated"] = True
+                            st.session_state["user"] = {
+                                "email": email,
+                                "name": name
+                            }
+                            st.rerun()
+                        else:
+                            st.error(msg)
                     
-            st.markdown('<div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem; text-align: center;"></div>', unsafe_allow_html=True)
+            st.markdown('<div class="auth-divider"></div>', unsafe_allow_html=True)
             if st.button("Already have an account? Sign In", use_container_width=True):
                 st.session_state["auth_mode"] = "signin"
                 st.rerun()

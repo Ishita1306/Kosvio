@@ -7,8 +7,13 @@ Handles user registration, password hashing (PBKDF2-SHA256), and credentials ver
 import sqlite3
 import hashlib
 import os
+import re
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Tuple
+
+# Setup local logger
+logger = logging.getLogger(__name__)
 
 DB_PATH = Path(__file__).resolve().parent / "auth_db.sqlite"
 
@@ -58,9 +63,37 @@ def verify_password(stored_password: str, provided_password: str) -> bool:
         return False
 
 
+def validate_email(email: str) -> bool:
+    """Validate email format using standard regex."""
+    email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return bool(re.match(email_regex, email.strip()))
+
+
+def validate_password_strength(password: str) -> Tuple[bool, str]:
+    """
+    Validate password strength requirements:
+    - Minimum 8 characters
+    - At least one uppercase letter
+    - At least one lowercase letter
+    - At least one number
+    - At least one special character
+    """
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one number."
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain at least one special character (e.g. !@#$%^&*)."
+    return True, "Strong password."
+
+
 def create_user(email: str, password: str, name: str) -> Tuple[bool, str]:
     """
-    Register a new user in the system.
+    Register a new user in the system with validations.
 
     Returns:
         (bool, str): (Success state, message/error details).
@@ -71,6 +104,13 @@ def create_user(email: str, password: str, name: str) -> Tuple[bool, str]:
 
     if not email_clean or not password or not name_clean:
         return False, "All fields are required."
+
+    if not validate_email(email_clean):
+        return False, "Invalid email address format."
+
+    is_strong, strength_msg = validate_password_strength(password)
+    if not is_strong:
+        return False, strength_msg
 
     pw_hash = hash_password(password)
 
@@ -85,7 +125,8 @@ def create_user(email: str, password: str, name: str) -> Tuple[bool, str]:
     except sqlite3.IntegrityError:
         return False, "An account with this email already exists."
     except Exception as e:
-        return False, f"Database error: {str(e)}"
+        logger.error("Failed to create user in database: %s", str(e), exc_info=True)
+        return False, "An unexpected database error occurred. Please try again later."
 
 
 def verify_user(email: str, password: str) -> Optional[Dict]:
@@ -112,6 +153,7 @@ def verify_user(email: str, password: str) -> Optional[Dict]:
 
             if row and verify_password(row["password_hash"], password):
                 return {"email": row["email"], "name": row["name"]}
-    except Exception:
+    except Exception as e:
+        logger.error("Failed to verify user credentials: %s", str(e), exc_info=True)
         pass
     return None

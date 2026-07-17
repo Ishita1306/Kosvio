@@ -1764,5 +1764,26 @@ div[data-testid="element-container"]:has(.hero-btn-secondary-wrapper) + div[data
     box-shadow: 0 0 0 2px var(--secondary) !important;
 }
 
-
-
+/* ── Authentication UI Styling ── */
+.auth-title {
+    margin: 0 0 0.25rem;
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: var(--text);
+    text-align: center;
+}
+.auth-title span {
+    color: var(--primary);
+}
+.auth-subtitle {
+    font-size: 0.95rem;
+    color: var(--subtext);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+.auth-divider {
+    margin-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-top: 1rem;
+    text-align: center;
+}
