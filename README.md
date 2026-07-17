@@ -4,7 +4,7 @@
 
 Clario is an end-to-end Business Intelligence platform that enables users to upload datasets, clean and analyze data, build interactive dashboards, generate AI-powered insights, and create executive-ready reports—all through an intuitive web interface.
 
-🌐 **Live Demo:** https://clario-bnkpdsrcejkujq75af9xmr.streamlit.app/
+🌐 **Live Demo:** https://clario-app.streamlit.app/
 
 ---
 
@@ -42,7 +42,7 @@ Clario is an end-to-end Business Intelligence platform that enables users to upl
 
 You can access the deployed application here:
 
-**https://clario-bnkpdsrcejkujq75af9xmr.streamlit.app/**
+**https://clario-app.streamlit.app/**
 
 ---
 
